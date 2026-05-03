@@ -10,7 +10,10 @@
  * Domain Path: /languages
  */
 
-defined( 'ABSPATH' ) || exit;
+require_once plugin_dir_path( __FILE__ ) . './includes/mandala-translate.php';
+require_once plugin_dir_path( __FILE__ ) . './includes/mandala-newar.php';
+
+    defined( 'ABSPATH' ) || exit;
 
 final class Mandala {
 
@@ -28,6 +31,9 @@ final class Mandala {
 	 * @since 2.1
 	 */
 	protected static $_instance = null;
+
+    protected object $translator;
+    protected object $newartrans;
 
 	/**
 	 * Main Mandala Instance.
@@ -65,6 +71,7 @@ final class Mandala {
 		return true;
 	}
 
+
 	/**
 	 * Mandala Constructor.
 	 */
@@ -74,9 +81,14 @@ final class Mandala {
 		$this->add_shortcodes();
 		$this->add_widgets();
 		$this->add_filters();
-		$this->enqueue_scripts();
+        $this->add_endpoints();
+        // Wrap enqueues in hooks instead of calling directly
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_styles'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_mandala_manifest'));
+		/*$this->enqueue_scripts();
 		$this->enqueue_styles();
-		$this->enqueue_mandala_manifest();
+		$this->enqueue_mandala_manifest();*/
 		$this->add_mandala();
 	}
 
@@ -101,6 +113,8 @@ final class Mandala {
 		define('MANDALA_ADMIN', MANDALA_HOME . 'admin/');
 		require_once(MANDALA_ADMIN . 'class-mandala-admin.php');  // Admin Class
 		require_once(MANDALA_INCLUDES . 'class-mandala-widget.php'); // Widget Class
+        $this->translator = new MandalaTranslate();
+        $this->newartrans = new MandalaNewar();
 	}
 
 	/**
@@ -163,10 +177,115 @@ final class Mandala {
 		register_widget( 'mandala_widget' );
 	}
 
+    public function add_endpoints() {
+        add_action( 'rest_api_init', function () {
+
+            register_rest_route( 'mandala/v1', '/splittib', array(
+                'methods' => 'GET',
+                'callback' => array($this, 'split_tibetan'),
+                'args' => array('tib'),
+            ) );
+
+            register_rest_route( 'mandala/v1', '/parsetib', array(
+                'methods' => 'GET',
+                'callback' => array($this, 'parse_tibetan'),
+                'args' => array('tib'),
+            ) );
+
+            register_rest_route( 'mandala/v1', '/parsenewar', array(
+                'methods' => 'GET',
+                'callback' => array($this, 'parse_newar'),
+                'args' => array('tib'),
+            ) );
+        } );
+    }
+
+    public function split_tibetan( WP_REST_Request $request ) {
+        // Test string: བདེ་བར་གཤེགས་པའི་བསྟན་པ་ཐམས་ཅད་ཀྱི་སྙིང་པོ་
+        $tib = isset($request['tib']) ? $request['tib'] : false;
+
+        if ($tib && $this->translator) {
+            $tdata = $this->translator->split($tib);
+        }
+        $packet = array(
+            'tib' => $tib,
+            'phrases' => $tdata
+        );
+        return $packet;
+    }
+
+    /**
+     * An api function for parsing and translating tibetan
+     * Takes a phrase of Tibetan (converts wylie to unicode if necessary) and breaks into syllables
+     * @param WP_REST_Request $request
+     * @return array|void
+     */
+    public function parse_tibetan( WP_REST_Request $request ) {
+        // Test string: བདེ་བར་གཤེགས་པའི་བསྟན་པ་ཐམས་ཅད་ཀྱི་སྙིང་པོ་
+        if (!$this->translator) { return; }
+        $tib = false;
+        if (isset($request['tib'])) {
+            $tib = $request['tib'];
+        }
+        $done = '';
+        if (isset($request['done'])) {
+            $done = $request['done'];
+        }
+
+        $tdata = $this->translator->parse($tib, $done);
+        if ($tdata) {
+            return $tdata;
+        } else {
+            $debug_out = array(
+                'status' => 'failure to parse Tibetan',
+                'tib' => $tib,
+                'translator' => (!empty($this->translator)) ? 'yes': 'no',
+                'request' => $request,
+            );
+
+            return $debug_out;
+        }
+    }
+
+    public function parse_newar( WP_REST_Request $request ) {
+        if (!$this->newartrans) { return; }
+        $newar = false;
+        if (isset($request['newar'])) {
+            $newar = $request['newar'];
+        }
+        $done = '';
+        if (isset($request['done'])) {
+            $done = $request['done'];
+        }
+
+        // $queryparams = $request->get_query_params();
+        // return json_encode($queryparams);
+
+        $retfunc = (isset($request['json_wrf'])) ? $request['json_wrf'] : false;
+
+        $tdata = $this->newartrans->parse($newar, $done);
+        if ($tdata) {
+            if ($retfunc) {
+                $tdata = json_encode($tdata);
+                return "$retfunc($tdata)";
+            }
+            return $tdata;
+        } else {
+            $debug_out = array(
+                'status' => 'failure to parse Newar',
+                'tib' => $newar,
+                'translator' => (!empty($this->newartrans)) ? 'yes': 'no',
+                'request' => $request,
+            );
+
+            return $debug_out;
+        }
+    }
+
 	/**
 	 * Define Mandala enqueue_scripts.
 	 */
-	private function enqueue_scripts() {
+	public function enqueue_scripts() {
 		if (!is_admin()) {
 			wp_enqueue_script( 'googlemaps', esc_url_raw( 'https://maps.googleapis.com/maps/api/js?v=3&key=AIzaSyAXpnXkPS39-Bo5ovHQWvyIk6eMgcvc1q4&amp;sensor=false' ), array(), null );
 			wp_enqueue_script( 'jquery-resizable', plugins_url( "public/js/jquery-resizable.min.js", __FILE__ ), array( 'jquery' ), '1.0', true );
@@ -180,10 +299,12 @@ final class Mandala {
             $hash_exceptions = explode("\n", $hash_exceptions);
             $hash_exceptions = array_map(function($item) { return trim($item); }, $hash_exceptions);
             $pagePath = parse_url( $_SERVER['REQUEST_URI'] );
+            $pathFilter = (bool)$options['path_filter'];
             $msettings = array(
                 'hash_exceptions' => $hash_exceptions,
                 'sidebar_state' => $options['default_sidebar'] * 1,
                 'initial_path' => $pagePath['path'],
+                'path_filter' => $pathFilter,
             );
             // error_log('window.mandala_wp: ' . json_encode($msettings));
             $mandala_settings = 'window.mandala_wp = ' . json_encode($msettings) . ';';
@@ -194,7 +315,7 @@ final class Mandala {
 	/**
 	 * Define Mandala enqueue_styles.
 	 */
-	private function enqueue_styles() {
+	public function enqueue_styles() {
 		if (!is_admin()) {
 			wp_enqueue_style( 'mandala-googlefonts', esc_url_raw( 'https://fonts.googleapis.com/css?family=EB+Garamond:400,400i,500,700|Open+Sans:400,400i,600&subset=cyrillic,cyrillic-ext,greek,greek-ext,latin-ext' ), array(), null );
 			wp_enqueue_style( 'fontawesome-main', esc_url_raw( 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/fontawesome.min.css' ), array(), null );
@@ -208,37 +329,40 @@ final class Mandala {
 	 * Define Mandala enqueue_mandala_manifest.
 	 * Enqueues the scripts and styles used for the Mandala app
 	 */
-	private function enqueue_mandala_manifest() {
-		if (!is_admin()) {
+	public function enqueue_mandala_manifest() {
+		if (!is_admin() && file_exists(MANDALA_ASSET_MANIFEST)) {
+
 			$asset_manifest_raw = file_get_contents(MANDALA_ASSET_MANIFEST);
 			// error_log($asset_manifest_raw);
 			$asset_manifest = json_decode($asset_manifest_raw, true)['files'];
+            $manifest_version = filemtime(MANDALA_ASSET_MANIFEST);
+            //error_log("manifest version: $manifest_version");
 
 			if (isset($asset_manifest['main.css'])) {
-				wp_enqueue_style('mandala', get_site_url() . $asset_manifest['main.css']);
+				wp_enqueue_style('mandala', get_site_url() . $asset_manifest['main.css'], array(), $manifest_version);
 			}
 
-			wp_enqueue_script('mandala-runtime', get_site_url() . $asset_manifest['runtime-main.js'], array('wp-element'), null, true);
-			wp_enqueue_script('mandala-main', get_site_url() . $asset_manifest['main.js'], array('mandala-runtime'), null, true);
+			wp_enqueue_script('mandala-runtime', get_site_url() . $asset_manifest['runtime-main.js'], array('wp-element'), $manifest_version, true);
+			wp_enqueue_script('mandala-main', get_site_url() . $asset_manifest['main.js'], array('mandala-runtime'), $manifest_version, true);
 
-			foreach ($asset_manifest as $key => $value) {
+
+            foreach ($asset_manifest as $key => $value) {
 				if (preg_match('@static/js/(.*)\.chunk\.js@', $key, $matches)) {
 					if ($matches && is_array($matches) && count($matches) === 2) {
 						$name = 'mandala-' . preg_replace('/[^A-Za-z0-9]/', '-', $matches[1]);
-						wp_enqueue_script($name, get_site_url() . $value, array('mandala-main'), null, true);
+						wp_enqueue_script($name, get_site_url() . $value, array('mandala-main'), $manifest_version, true);
 					}
 				}
 
 				if (preg_match('@static/css/(.*)\.chunk\.css@', $key, $matches)) {
 					if ($matches && is_array($matches) && count($matches) === 2) {
 						$name = 'mandala-' . preg_replace('/[^A-Za-z0-9]/', '-', $matches[1]);
-						wp_enqueue_style($name, get_site_url() . $value, array('mandala'), null);
+						wp_enqueue_style($name, get_site_url() . $value, array('mandala'), $manifest_version);
 					}
 				}
 			}
 		}
 	}
-
 
 	/**
 	 * Function to add actions to the theme hooks named in the admin settings page
@@ -267,6 +391,29 @@ final class Mandala {
 		if (!empty($options['advanced_search_hook_name'])) {
 			add_action($options['advanced_search_hook_name'], array($this, 'add_advanced_search'));
 		}
+
+        // Add ACF when it's a post
+        add_action('wp', function() {
+            // Only run if we are on the front end
+            if ( ! is_admin() ) {
+                if (is_page()) {
+                    $post_id = get_queried_object_id();
+                    $custom_kmaps = get_field('custom_kmap_trees', $post_id); // need to add to Mandala ACF group
+                    // wp_add_inline_script('mandala-main', 'console.log("React app loaded! And it‘s a page");');
+                    if ($custom_kmaps) {
+                        $tempparts = explode(',', $custom_kmaps);
+                        $treedata = array();
+                        foreach ($tempparts as $k) {
+                            list($key, $value) = explode(':', $k);
+                            $treedata[$key] = trim($value);
+                        }
+                        wp_localize_script('mandala-main', 'treedata', $treedata);
+                    }
+                }
+            }
+        });
+        /*
+       */
 	}
 
 	// Add Functions called from the add actions in add_mandala()

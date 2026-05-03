@@ -26,15 +26,20 @@ class Mandala_Admin {
 		add_filter( 'plugin_action_links_mandala/mandala.php', array( $this, 'add_settings_link' ) );
         add_action('admin_init', array($this, 'register_settings'));
 		add_action( 'admin_menu', array($this, 'settings_page'));
-		wp_enqueue_style('mandala-admin-css', plugins_url("css/mandala-admin.css", __FILE__),
-            array(), "1.0", "all");
-		wp_enqueue_style('jquery-linedtextarea-css', plugins_url("css/jquery-linedtextarea.css", __FILE__),
-			array(), "1.0", "all");
-		wp_enqueue_script( 'jquery-linedtextarea', plugins_url( "js/jquery-linedtextarea.js", __FILE__ ),
-            array( 'jquery' ), '1.0', true );
-		wp_enqueue_script( 'mandala-admin', plugins_url( "js/mandala-admin.js", __FILE__ ),
-            array( 'jquery-linedtextarea' ), '1.0', true );
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_styles'));
+
 	}
+
+    public function enqueue_admin_styles() {
+        wp_enqueue_style('mandala-admin-css', plugins_url("css/mandala-admin.css", __FILE__),
+                array(), "1.0", "all");
+        wp_enqueue_style('jquery-linedtextarea-css', plugins_url("css/jquery-linedtextarea.css", __FILE__),
+                array(), "1.0", "all");
+        wp_enqueue_script( 'jquery-linedtextarea', plugins_url( "js/jquery-linedtextarea.js", __FILE__ ),
+                array( 'jquery' ), '1.0', true );
+        wp_enqueue_script( 'mandala-admin', plugins_url( "js/mandala-admin.js", __FILE__ ),
+                array( 'jquery-linedtextarea' ), '1.0', true );
+    }
 
     public function add_settings_link( $links ) {
 	    // Build and escape the URL.
@@ -92,6 +97,12 @@ class Mandala_Admin {
 		    'Other Settings',
 		    array($this, 'other_settings_section'),
 		    'mandala_settings');
+        add_settings_field(
+            'sitemap_page_id',
+            'Sitemap Page ID',
+            array($this, 'sitemap_page_id_field'),
+            'mandala_settings',
+            'other_settings_section');
 	    add_settings_field(
 		    'default_sidebar',
 		    'Default Sidebar',
@@ -102,6 +113,12 @@ class Mandala_Admin {
             'hash_exceptions',
             'Hash Exceptions',
             array($this, 'hash_exception_field'),
+            'mandala_settings',
+            'other_settings_section');
+        add_settings_field(
+            'path_filter',
+            'Filter Assets by Path',
+            array($this, 'path_filter_field'),
             'mandala_settings',
             'other_settings_section');
 
@@ -188,7 +205,14 @@ class Mandala_Admin {
 		     "<div id='styles_messages'></div>";
 	}
 
-	public function default_sidebar_field() {
+    public function sitemap_page_id_field() {
+        $options = get_option('mandala_plugin_options');
+        $option_val = !empty($options['sitemap_page_id']) ? $options['sitemap_page_id'] : '';
+        echo "<input id='mandala_sitemap_page_id' name='mandala_plugin_options[sitemap_page_id]' " .
+            "type='text' value='" . esc_attr($option_val) . "' /><p><em>The page ID for the sitemap.</em></p>";
+    }
+
+    public function default_sidebar_field() {
 		$options = get_option( 'mandala_plugin_options' );
 		$option_val = !empty($options['default_sidebar']) ? $options['default_sidebar'] : '';
         $nonesel = ($option_val == 0) ? " selected='selected'" : '';
@@ -213,6 +237,21 @@ class Mandala_Admin {
                           name='mandala_plugin_options[hash_exceptions]' 
                           rows="20" cols="40">$option_val</textarea>
                 <p>Enter hash paths (including the hash) that you want the Mandala plugin to ignore (one per line).</p>
+            </div>
+        EOT;
+    }
+
+    public function path_filter_field() {
+        $options = get_option( 'mandala_plugin_options' );
+        $check_val = $options['path_filter'] ?? 0;
+        $checked_attr = checked( 1, $check_val, false );
+        echo <<<EOT
+            <div class='field-wrapper'>
+                <input id='mandala_automatic_insert' name='mandala_plugin_options[path_filter]' 
+                    type='checkbox' value='1'
+                    $checked_attr
+                />
+                <p>When checked, searches from pages whose path contains an asset type, e.g. ".../audio-video/...", will filter for that asset type.</p>
             </div>
         EOT;
     }
