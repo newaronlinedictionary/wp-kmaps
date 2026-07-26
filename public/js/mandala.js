@@ -26,7 +26,7 @@
                 window.scrollTo(0,0);
             }
             setTimeout(() => {
-                if ($('#l-column__search').hasClass('closed')) {
+                if ($('#l-column__search, #l-column__search--treeNav').hasClass('closed')) {
                     $('#secondary').hide();
                 } else if ($('#secondary').is(":hidden")) {
                     $('#secondary').show();
@@ -34,6 +34,20 @@
                 }
             }, 10);
         });
+
+    // **** Path-based app detection ****//
+    // The React app now routes on real pathnames (BrowserRouter), not the hash,
+    // so pages under these prefixes should always show the app regardless of
+    // whether a hash is present. Keep in sync with the top-level Switch routes
+    // in kmaps-app/src/main/ContentMain.js.
+    const MANDALA_APP_PATH_PREFIXES = [
+        '/glossary', '/places', '/subjects', '/terms',
+        '/search', '/advanced-search', '/translate', '/admin',
+    ];
+    function isMandalaAppPath(pathname) {
+        if (pathname === '/') return true;
+        return MANDALA_APP_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    }
 
     // **** Hash Processing ****//
     // Function to add "mandala" class to body when a link with a mandala hash is clicked
@@ -73,8 +87,13 @@
     });
 
     // 'mandala' body class is initially added automatically by plugin php, this hides mandala page content
-    // Remove it here if there is no hash to load Mandala content
+    // Remove it here if there is no hash to load Mandala content and this isn't a path the app owns
     setTimeout(function() {
+        if (isMandalaAppPath(window.location.pathname)) {
+            if (!$('body').hasClass('mandala')) { $('body').addClass('mandala'); }
+            $('body.loading').removeClass('loading');
+            return;
+        }
         const hash = window.location.hash;
         const he = window?.mandala_wp?.hash_exceptions; // hash exceptions are set in the admin page and added as a js object
         const setFilterQuery = hash?.includes('#/?'); // if the hash include '/#/?...' this is to set filters in advanced search sidebar but we still want the WP page to show so remove mandala class
@@ -89,6 +108,10 @@
     // Use Hash Listener to determine when hash is removed and re-expose WP site by removing mandala class from body
     // Mainly for back button cases, but also for menu-highlighting
     window.addEventListener('hashchange', function(e) {
+        if (isMandalaAppPath(window.location.pathname)) {
+            if (!$('body').hasClass('mandala')) { $('body').addClass('mandala'); }
+            return;
+        }
         const hv = window.location.hash;
         // console.log('hv is', hv);
         const he = window?.mandala?.hash_execptions; // hash exceptions are set in the admin page and added as a js object

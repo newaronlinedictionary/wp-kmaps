@@ -149,7 +149,7 @@ final class Mandala {
 			if ( ! preg_match( '/^mandala-/', $handle ) ) {
 				return $tag;
 			}
-			return str_replace( ' src', ' async defer src', $tag );
+			return str_replace( '<script ', '<script type="module" ', $tag );
 		}, 10, 2 );
 
 
@@ -167,6 +167,53 @@ final class Mandala {
 			$classes[] = 'devtest';
 			return $classes;
 		}
+
+		// Serve the Glossary page's template instead of a real 404 for paths that
+		// belong to the React app's client-side router but aren't real WP pages
+		// (e.g. /terms/12345, /places/67). Keep this prefix list in sync with the
+		// top-level routes in kmaps-app/src/main/ContentMain.js.
+		add_action( 'template_redirect', array( $this, 'serve_spa_route_fallback' ) );
+	}
+
+	/**
+	 * If the current request 404'd but its first path segment is one the React
+	 * app owns client-side, swap in the Glossary page (mounts #mandala-root)
+	 * instead of the real 404 template, so BrowserRouter can take over and
+	 * render the correct view for the actual URL.
+	 */
+	public function serve_spa_route_fallback() {
+		if ( ! is_404() ) {
+			return;
+		}
+
+		$spa_prefixes = array( 'places', 'subjects', 'terms', 'search', 'advanced-search', 'translate', 'admin' );
+		$path = trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' );
+		$first_segment = strtok( $path, '/' );
+		if ( ! in_array( $first_segment, $spa_prefixes, true ) ) {
+			return;
+		}
+
+		$glossary = get_page_by_path( 'glossary' );
+		if ( ! $glossary ) {
+			return;
+		}
+
+		global $wp_query;
+		status_header( 200 );
+		$wp_query->is_404 = false;
+		$wp_query->is_page = true;
+		$wp_query->is_singular = true;
+		$wp_query->queried_object = $glossary;
+		$wp_query->queried_object_id = $glossary->ID;
+		$wp_query->post = $glossary;
+		$wp_query->posts = array( $glossary );
+		$wp_query->post_count = 1;
+		$wp_query->found_posts = 1;
+		$wp_query->max_num_pages = 1;
+		setup_postdata( $glossary );
+
+		include get_page_template();
+		exit;
 	}
 
 	public function add_widgets() {
