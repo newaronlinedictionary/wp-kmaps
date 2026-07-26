@@ -1,7 +1,7 @@
 (function ($) {
     // Check to see if there are multiple nav elements
     // TODO: Is this still necessary?
-    $navs = $(".flourishing-main-wrapper .elementor-widget-wrap > .elementor-widget-nav-menu");
+    let $navs = $(".flourishing-main-wrapper .elementor-widget-wrap > .elementor-widget-nav-menu");
     if ($navs.length > 1) {
         $($navs[0]).attr('style', 'display:none !important');
         $($navs[1]).css('margin-top', '-23px');
