@@ -3,7 +3,7 @@
  * @wordpress-plugin
  * Plugin Name: Mandala React App
  * Description: Mandala React App embedded in a WordPress Page called /mandala
- * Version: 1.1.2
+ * Version: 1.1.3
  * Requires at least: 5.2
  * Requires PHP: 7.2
  * Author: Gerard Ketuma, Than Grove
@@ -22,7 +22,7 @@ final class Mandala {
 	 *
 	 * @var string
 	 */
-	public $version = '1.1.2';
+	public $version = '1.1.3';
 
 	/**
 	 * The single instance of the class.
@@ -334,7 +334,7 @@ final class Mandala {
 	 */
 	public function enqueue_scripts() {
 		if (!is_admin()) {
-			wp_enqueue_script( 'googlemaps', esc_url_raw( 'https://maps.googleapis.com/maps/api/js?v=3&key=AIzaSyAXpnXkPS39-Bo5ovHQWvyIk6eMgcvc1q4&amp;sensor=false' ), array(), null );
+			wp_enqueue_script( 'googlemaps', esc_url_raw( 'https://maps.googleapis.com/maps/api/js?v=3&key=AIzaSyROTATED-DUMMY-KEY-0000000000000&amp;sensor=false' ), array(), null );
 			wp_enqueue_script( 'jquery-resizable', plugins_url( "public/js/jquery-resizable.min.js", __FILE__ ), array( 'jquery' ), '1.0', true );
 			wp_enqueue_script( 'mandala-js', plugins_url( "public/js/mandala.js", __FILE__ ), array( 'jquery' ), '1.0', true );
 

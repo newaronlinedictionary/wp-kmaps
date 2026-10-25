@@ -56,7 +56,7 @@ add_action('init', function () {
             wp_enqueue_style('fontawesome-main', esc_url_raw('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/fontawesome.min.css'), array(), null);
             wp_enqueue_style('fontawesome-solid', esc_url_raw('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/solid.min.css'), array(), null);
             wp_enqueue_style('bootstrap-main', esc_url_raw('https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css'), array(), null);
-            wp_enqueue_script('googlemaps', esc_url_raw('https://maps.googleapis.com/maps/api/js?v=3&key=AIzaSyAXpnXkPS39-Bo5ovHQWvyIk6eMgcvc1q4&amp;sensor=false'), array(), null);
+            wp_enqueue_script('googlemaps', esc_url_raw('https://maps.googleapis.com/maps/api/js?v=3&key=AIzaSyROTATED-DUMMY-KEY-0000000000000&amp;sensor=false'), array(), null);
             wp_enqueue_style('mandala-css', plugins_url("mandala.css", __FILE__), array(), "1.0", "all");
             wp_enqueue_script('jquery-resizable', plugins_url("jquery-resizable.min.js", __FILE__), array('jquery'), '1.0', true);
             wp_enqueue_script('mandala-js', plugins_url("mandala.js", __FILE__), array('jquery'), '1.0', true);
